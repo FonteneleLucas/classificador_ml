@@ -1,35 +1,48 @@
-from sklearn.neighbors import NearestNeighbors
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
 
 class Classificador:
     def classificar(self, renda_mensal: float, valor_divida: float) -> float:
-        
+
+        # Lendo os dados e separando em X e y
         data = pd.read_csv('negociacoes.csv')
+        X = data[['RM', 'VD']].values
+        y = data[['NP', 'VP']].values
 
-        array = data[['RM', 'VD']].values
+        # Dividindo o conjunto de dados em treino e teste
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # Definindo novo nó a ser classificado
+        # Normalizando os dados de entrada do conjunto de treino
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+
+        # Normalizando os dados de entrada do conjunto de teste utilizando a mesma normalização do conjunto de treino
+        X_test = scaler.transform(X_test)
+
+        # Criando o modelo de rede neural
+        model = tf.keras.Sequential([
+            tf.keras.layers.Dense(16, activation='relu', input_shape=(2,)),
+            tf.keras.layers.Dense(2)
+        ])
+
+        # Compilando o modelo com a função de perda MSE e o otimizador Adam
+        model.compile(loss='mean_squared_error', optimizer='adam')
+
+        # Treinando o modelo com o conjunto de treino
+        model.fit(X_train, y_train, epochs=100, batch_size=32)
+
+        # Avaliando o modelo com o conjunto de teste
+        loss = model.evaluate(X_test, y_test)
+        print(f"Perda no conjunto de teste: {loss:.2f}")
+
+        # Utilizando o modelo para fazer previsões para o novo nó
         novo_no = np.array([[renda_mensal, valor_divida]])
+        novo_no = scaler.transform(novo_no)
+        np_mean, vp_mean = model.predict(novo_no)[0]
 
-        # Obtendo os índices dos vizinhos mais próximos ao novo nó
-        neigh = NearestNeighbors(n_neighbors=3)
-        neigh.fit(array)
-        nn_indices = neigh.kneighbors(novo_no, return_distance=False)
-
-        # Obtendo os valores de NP, VP e VD para os vizinhos mais próximos
-        rm_values = data.loc[nn_indices[0], 'RM']
-        vd_values = data.loc[nn_indices[0], 'VD']
-        np_values = data.loc[nn_indices[0], 'NP']
-        vp_values = data.loc[nn_indices[0], 'VP']
-
-        # Obtendo os valores médios de NP, VP e VD para os vizinhos mais próximos
-        rm_mean = np.mean(rm_values)
-        vd_mean = np.mean(vd_values)
-        np_mean = np.mean(np_values)
-        vp_mean = np.mean(vp_values)
-
-        # Retornando os valores médios para NP, VP, VD para o novo nó
-        print(f"Plano sugerido: RM = {rm_mean:.2f}, VD = {vd_mean:.2f}, NP = {np_mean:.2f}, VP = {vp_mean:.2f}")
-        return rm_mean, vd_mean, np_mean, vp_mean
+        # Retornando os valores médios para NP, VP para o novo nó
+        print(f"Plano sugerido: NP = {np_mean:.2f}, VP = {vp_mean:.2f}")
+        return renda_mensal, valor_divida, np_mean, vp_mean
