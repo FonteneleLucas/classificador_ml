@@ -1,7 +1,7 @@
 from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 class Classificador:
     def classificar(self, renda_mensal: float, valor_divida: float) -> float:
@@ -10,12 +10,18 @@ class Classificador:
 
         array = data[['RM', 'VD']].values
 
-        # Definindo novo nó a ser classificado
-        novo_no = np.array([[renda_mensal, valor_divida]])
+        # Normalizar os dados
+        scaler = StandardScaler()
+        array_norm = scaler.fit_transform(array)
+
+        # Normalizar o novo nó
+        novo_no = scaler.transform([[renda_mensal, valor_divida]])
+
+        # Definindo o objeto NearestNeighbors com a métrica 'cosine'
+        neigh = NearestNeighbors(n_neighbors=3, metric='cosine')
+        neigh.fit(array_norm)
 
         # Obtendo os índices dos vizinhos mais próximos ao novo nó
-        neigh = NearestNeighbors(n_neighbors=3)
-        neigh.fit(array)
         nn_indices = neigh.kneighbors(novo_no, return_distance=False)
 
         # Obtendo os valores de NP, VP e VD para os vizinhos mais próximos
